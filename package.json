@@ -1,0 +1,15 @@
+{
+  "name": "desktopzoomapp",
+  "version": "1.0.0",
+  "description": "The purpose of this open source desktop zoom app is to help people who have eyesight problems see things more clearly on their desktop.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "electron": "29.1.0"
+  }
+}
