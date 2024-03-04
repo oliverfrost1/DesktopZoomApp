@@ -1,4 +1,11 @@
-import { app, BrowserWindow, globalShortcut } from "electron";
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  desktopCapturer,
+  ipcMain,
+  screen,
+} from "electron";
 import path from "path";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -10,15 +17,14 @@ let window: BrowserWindow | null;
 const createWindow = () => {
   // Create the browser window.
   window = new BrowserWindow({
-    width: 900,
-    height: 600,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
     },
-    transparent: true,
+    transparent: false,
     alwaysOnTop: true,
+    frame: true,
   });
 
   // and load the index.html of the app.
@@ -41,12 +47,39 @@ const registerShortcuts = () => {
   });
 };
 
+ipcMain.on("request-window-position", (event) => {
+  const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
+  const { x, y, width, height } = window.getBounds();
+
+  // Adjusting for the display's scaling factor
+  const adjustedX = x * scaleFactor;
+  const adjustedY = y * scaleFactor;
+  const adjustedWidth = width * scaleFactor;
+  const adjustedHeight = height * scaleFactor;
+
+  event.reply("window-position", {
+    x: adjustedX,
+    y: adjustedY,
+    width: adjustedWidth,
+    height: adjustedHeight,
+  });
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on("ready", createWindow);
 
 app.on("ready", registerShortcuts);
+
+app.on("ready", () => {
+  desktopCapturer.getSources({ types: ["screen"] }).then(async (sources) => {
+    for (const source of sources) {
+      window.webContents.send("SET_SOURCE", source.id);
+      return;
+    }
+  });
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
