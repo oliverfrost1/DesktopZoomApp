@@ -1,11 +1,13 @@
 // In the preload script.
 import { ipcRenderer } from "electron";
 
-ipcRenderer.on("SET_SOURCE", async (event, sourceId) => {
+let stream: MediaStream;
+ipcRenderer.on("SET_SOURCE", async (_, sourceId) => {
+  stream && stream.getTracks().forEach((track) => track.stop());
   console.log("setting source");
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
         mandatory: {
@@ -13,6 +15,8 @@ ipcRenderer.on("SET_SOURCE", async (event, sourceId) => {
           chromeMediaSourceId: sourceId,
           width: "100%",
           height: "100%",
+
+          // Hide cursor from the screen capture
         },
       },
     });
@@ -42,6 +46,7 @@ function handleStream(stream: MediaStream) {
 
     // Continuously draw the video frame, cropped to the canvas
     (function drawFrame() {
+      if (!stream?.active) return;
       requestAnimationFrame(drawFrame);
       console.log(windowHeight, windowWidth, windowX, windowY);
       canvas.width = windowWidth;
@@ -64,15 +69,13 @@ function handleStream(stream: MediaStream) {
 }
 
 function callWindowPosition() {
-  console.log("calling");
   ipcRenderer.send("request-window-position");
   setTimeout(() => {
     callWindowPosition();
-  }, 200);
+  }, 50);
 }
 
-ipcRenderer.on("window-position", (event, { x, y, width, height }) => {
-  console.log("received");
+ipcRenderer.on("window-position", (_, { x, y, width, height }) => {
   windowX = x;
   windowY = y;
   windowWidth = width;

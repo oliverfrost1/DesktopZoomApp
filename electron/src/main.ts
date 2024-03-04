@@ -13,10 +13,12 @@ if (require("electron-squirrel-startup")) {
   app.quit();
 }
 
+let currentDisplayId: number;
 let window: BrowserWindow | null;
 const createWindow = () => {
   // Create the browser window.
   window = new BrowserWindow({
+    title: "Screen Recorder",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -37,6 +39,28 @@ const createWindow = () => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
     );
   }
+
+  window.on("moved", () => {
+    window?.webContents.send("window-moved");
+    // Get current display
+    const display = screen.getDisplayNearestPoint({
+      x: window?.getBounds().x || 0,
+      y: window?.getBounds().y || 0,
+    });
+    if (display.id !== currentDisplayId) {
+      currentDisplayId = display.id;
+      desktopCapturer
+        .getSources({ types: ["screen"] })
+        .then(async (sources) => {
+          for (const source of sources) {
+            if (source.display_id == currentDisplayId) {
+              setSource(source.id);
+            }
+            console.log(source.display_id, currentDisplayId);
+          }
+        });
+    }
+  });
 
   // Open the DevTools.
   window.webContents.openDevTools();
@@ -74,14 +98,11 @@ app.on("ready", createWindow);
 
 app.on("ready", registerShortcuts);
 
-app.on("ready", () => {
-  desktopCapturer.getSources({ types: ["screen"] }).then(async (sources) => {
-    for (const source of sources) {
-      window.webContents.send("SET_SOURCE", source.id);
-      return;
-    }
-  });
-});
+app.on("ready", () => {});
+
+function setSource(sourceId: number) {
+  window.webContents.send("SET_SOURCE", sourceId);
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
